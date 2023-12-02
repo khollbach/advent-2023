@@ -1,85 +1,67 @@
-use std::{io, error::Error, cmp::Reverse};
+use std::io;
 
-fn _part_1() -> Result<(), Box<dyn Error>> {
+use anyhow::{Context, Result, ensure, bail};
+
+fn main() -> Result<()> {
     let mut sum = 0;
     for line in io::stdin().lines() {
-        let line = line?;
-        let first = line.find(|c: char| c.is_ascii_digit()).unwrap();
-        let last = line.rfind(|c: char| c.is_ascii_digit()).unwrap();
-        let a = line.chars().nth(first).unwrap();
-        let b = line.chars().nth(last).unwrap();
-        let ab: String = [a, b].into_iter().collect();
-        let n: u32 = ab.parse().unwrap();
-        sum += n;
+        let game = parse_line(&line?)?;
+        if game.is_possible() {
+            sum += game.id;
+        }
     }
     dbg!(sum);
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let mut sum = 0;
-    for line in io::stdin().lines() {
-        let line = line?;
-        let a = first_digit(&line);
-        let b = last_digit(&line);
-        let ab: String = [a, b].into_iter().collect();
-        let n: u32 = ab.parse().unwrap();
-        sum += n;
-    }
-    dbg!(sum);
-    Ok(())
+type Subset = (u32, u32, u32);
+
+#[derive(Debug)]
+struct Game {
+    id: u32,
+    subsets: Vec<Subset>,
 }
 
-const DIGITS: [(&str, char); 9] = [
-    ("one", '1'),
-    ("two", '2'),
-    ("three", '3'),
-    ("four", '4'),
-    ("five", '5'),
-    ("six", '6'),
-    ("seven", '7'),
-    ("eight", '8'),
-    ("nine", '9'),
-];
+fn parse_line(line: &str) -> Result<Game> {
+    let (left, right) = line.split_once(": ").context("colon")?;
+    let id = left.strip_prefix("Game ").context("Game")?;
+    let id = id.parse().context("id")?;
 
-fn first_digit(line: &str) -> char {
-    let mut candidates = vec![];
-
-    // Word digits.
-    for (s, d) in DIGITS {
-        if let Some(idx) = line.find(s) {
-            candidates.push((idx, d));
-        }
+    let mut subsets = vec![];
+    for s in right.split("; ") {
+        subsets.push(parse_subset(s)?);
     }
 
-    // Single-char digits.
-    let idx = line.find(|c: char| c.is_ascii_digit()).unwrap();
-    let digit = line.chars().nth(idx).unwrap();
-    candidates.push((idx, digit));
-
-    // Take the smallest idx.
-    candidates.sort();
-    let (_, d) = candidates[0];
-    d
+    Ok(Game { id, subsets })
 }
 
-fn last_digit(line: &str) -> char {
-    let mut candidates = vec![];
+fn parse_subset(s: &str) -> Result<Subset> {
+    let mut r = None;
+    let mut g = None;
+    let mut b = None;
 
-    // Word digits.
-    for (s, d) in DIGITS {
-        if let Some(idx) = line.rfind(s) {
-            candidates.push((idx, d));
-        }
+    for phrase in s.split(", ") {
+        let (left, right) = phrase.split_once(' ').context("space")?;
+
+        let amount = left.parse().context("amount")?;
+        let color = match right {
+            "red" => &mut r,
+            "green" => &mut g,
+            "blue" => &mut b,
+            _ => bail!("unknown color word: {right:?}"),
+        };
+
+        ensure!(color.is_none(), "re-defined color: {right:?}");
+        *color = Some(amount);
     }
 
-    // Single-char digits.
-    let idx = line.rfind(|c: char| c.is_ascii_digit()).unwrap();
-    let digit = line.chars().nth(idx).unwrap();
-    candidates.push((idx, digit));
+    Ok((r.unwrap_or(0), g.unwrap_or(0), b.unwrap_or(0)))
+}
 
-    // Take the largest idx.
-    candidates.sort_by_key(|&pair| Reverse(pair));
-    let (_, d) = candidates[0];
-    d
+impl Game {
+    fn is_possible(&self) -> bool {
+        self.subsets
+            .iter()
+            .all(|&(r, g, b)| r <= 12 && g <= 13 && b <= 14)
+    }
 }
