@@ -2,13 +2,24 @@ use std::io;
 
 use anyhow::{Context, Result, ensure, bail};
 
-fn main() -> Result<()> {
+fn _part_1() -> Result<()> {
     let mut sum = 0;
     for line in io::stdin().lines() {
         let game = parse_line(&line?)?;
         if game.is_possible() {
             sum += game.id;
         }
+    }
+    dbg!(sum);
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let mut sum = 0;
+    for line in io::stdin().lines() {
+        let game = parse_line(&line?)?;
+        let subset = game.required_supply();
+        sum += power(subset);
     }
     dbg!(sum);
     Ok(())
@@ -64,4 +75,15 @@ impl Game {
             .iter()
             .all(|&(r, g, b)| r <= 12 && g <= 13 && b <= 14)
     }
+
+    fn required_supply(&self) -> Subset {
+        let r = self.subsets.iter().map(|s| s.0).max().unwrap_or(0);
+        let g = self.subsets.iter().map(|s| s.1).max().unwrap_or(0);
+        let b = self.subsets.iter().map(|s| s.2).max().unwrap_or(0);
+        (r, g, b)
+    }
+}
+
+fn power((r, g, b): Subset) -> u32 {
+    r * g * b
 }
