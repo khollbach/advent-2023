@@ -1,6 +1,6 @@
 use std::io;
 
-use anyhow::{Context, Result, ensure, bail};
+use anyhow::{bail, ensure, Context, Result};
 
 fn _part_1() -> Result<()> {
     let mut sum = 0;

@@ -1,4 +1,4 @@
-use std::{io, error::Error, cmp::Reverse};
+use std::{cmp::Reverse, error::Error, io};
 
 fn _part_1() -> Result<(), Box<dyn Error>> {
     let mut sum = 0;
