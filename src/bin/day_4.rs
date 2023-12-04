@@ -2,12 +2,13 @@ use std::{collections::HashSet, io, result::Result as StdResult};
 
 use anyhow::{Context, Result};
 
-fn main() -> Result<()> {
+#[allow(dead_code)]
+fn part_1() -> Result<()> {
     let cards = read_cards()?;
 
     let mut score = 0;
     for c in cards {
-        score += c.score();
+        score += c.score_part_1();
     }
     dbg!(score);
 
@@ -45,17 +46,39 @@ struct Card {
 }
 
 impl Card {
-    fn score(&self) -> u32 {
+    fn num_winning(&self) -> u32 {
         let mut count = 0;
         for n in &self.numbers_you_have {
             if self.winning_numbers.contains(n) {
                 count += 1;
             }
         }
+        count
+    }
+
+    fn score_part_1(&self) -> u32 {
+        let count = self.num_winning();
         if count != 0 {
             2u32.pow(count - 1)
         } else {
             0
         }
     }
+}
+
+fn main() -> Result<()> {
+    let cards = read_cards()?;
+    let n = cards.len();
+    let mut freqs = vec![1; n];
+
+    for (i, c) in cards.into_iter().enumerate() {
+        for j in 1..=c.num_winning() as usize {
+            freqs[i + j] += freqs[i];
+        }
+    }
+
+    let total: u32 = freqs.into_iter().sum();
+    dbg!(total);
+
+    Ok(())
 }
