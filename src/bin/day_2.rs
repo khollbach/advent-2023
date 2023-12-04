@@ -2,7 +2,8 @@ use std::io;
 
 use anyhow::{bail, ensure, Context, Result};
 
-fn _part_1() -> Result<()> {
+#[allow(dead_code)]
+fn part_1() -> Result<()> {
     let mut sum = 0;
     for line in io::stdin().lines() {
         let game = parse_line(&line?)?;

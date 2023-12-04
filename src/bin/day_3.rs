@@ -10,7 +10,8 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-fn _part_1() -> Result<()> {
+#[allow(dead_code)]
+fn part_1() -> Result<()> {
     let grid = read_grid()?;
     let numbers = grid.find_numbers()?;
 
