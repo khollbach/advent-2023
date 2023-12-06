@@ -9,7 +9,7 @@ use std::{
 };
 
 #[derive(Debug)]
-pub struct RawInput {
+pub struct Input {
     pub initial_seeds: Vec<u64>,
     pub maps: Vec<Map>,
 }
@@ -28,7 +28,7 @@ pub struct RangeMap {
 
 /// We rely on the mappings appearing in-order in the input,
 /// and don't validate this.
-pub fn read() -> Result<RawInput> {
+pub fn read() -> Result<Input> {
     let lines = io::read_to_string(io::stdin())?;
     let mut sections = lines.split("\n\n");
 
@@ -41,7 +41,7 @@ pub fn read() -> Result<RawInput> {
 
     let maps = sections.map(parse_map).collect::<Result<_>>()?;
 
-    Ok(RawInput {
+    Ok(Input {
         initial_seeds,
         maps,
     })

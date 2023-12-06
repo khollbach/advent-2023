@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 
-use super::input::{Map, RangeMap, RawInput};
+use super::input::{Input, Map, RangeMap};
 
-pub fn solve(input: &RawInput) -> Result<u64> {
+pub fn solve(input: &Input) -> Result<u64> {
     input
         .initial_seeds
         .iter()
