@@ -78,7 +78,8 @@ impl Subset {
         let points = iter::once(0).chain(points).chain([i64::MAX]);
 
         let mut ranges = vec![];
-        for (start, end) in points.tuple_windows() {
+        for pair in &points.sorted().chunks(2) {
+            let (start, end) = pair.collect_tuple().unwrap();
             ranges.push(Interval { start, end });
         }
         Self { ranges }

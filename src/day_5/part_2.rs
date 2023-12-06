@@ -35,6 +35,7 @@ struct Interval {
 
 #[derive(Debug)]
 struct Map {
+    /// Invariant: these should *cover* the non-negative number line.
     range_maps: Vec<RangeMap>,
 }
 
@@ -57,10 +58,10 @@ impl Map {
     fn range_image(&self, range: Interval) -> Subset {
         let mut out = vec![];
         for rmap in &self.range_maps {
-            let mut segment = Interval::intersection(rmap.input, range);
+            let segment = Interval::intersection(rmap.input, range);
             if !segment.is_empty() {
-                segment.start += rmap.offset();
-                out.push(segment);
+                let segment_image = segment.translate(rmap.offset());
+                out.push(segment_image);
             }
         }
         Subset { ranges: out }
@@ -74,8 +75,15 @@ impl Interval {
         Self { start, end }
     }
 
-    fn is_empty(&self) -> bool {
+    fn is_empty(self) -> bool {
         self.start >= self.end
+    }
+
+    fn translate(self, offset: i64) -> Self {
+        Self {
+            start: self.start + offset,
+            end: self.end + offset,
+        }
     }
 }
 
