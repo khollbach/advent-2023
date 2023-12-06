@@ -1,18 +1,13 @@
-use std::iter;
-
-use anyhow::ensure;
-use anyhow::Result;
+use anyhow::{ensure, Result};
 use itertools::Itertools;
 
 use crate::day_5::{
     input::{self as raw_input, Input as RawInput},
-    part_2::{Input, Interval, Map, Subset},
+    part_2::{Input, Interval, Map, RangeMap, Subset},
 };
 
-use super::RangeMap;
-
 impl Input {
-    /// Massage types, to the input in a pleasant shape for solving part 2.
+    /// Massage types, to get the input in a pleasant shape for solving part 2.
     pub fn from_raw(input: &RawInput) -> Result<Input> {
         ensure!(input.initial_seeds.len() % 2 == 0, "odd number of seeds");
 
@@ -70,19 +65,23 @@ impl Map {
 impl Subset {
     /// NOTE: this assumes the intervals of `self` are non-overlapping; but we
     /// don't actually check this.
-    ///
-    /// We also don't filter out empty intervals from the output. These will
-    /// occur if there's two input intervals that are side-by-side with no gap.
     fn compliment(&self) -> Self {
-        let points = self.ranges.iter().flat_map(|r| [r.start, r.end]);
-        let points = iter::once(0).chain(points).chain([i64::MAX]);
+        let points = self
+            .ranges
+            .iter()
+            .flat_map(|r| [r.start, r.end])
+            .chain([0, i64::MAX])
+            .sorted();
 
-        let mut ranges = vec![];
-        for pair in &points.sorted().chunks(2) {
+        let mut out = vec![];
+        for pair in &points.chunks(2) {
             let (start, end) = pair.collect_tuple().unwrap();
-            ranges.push(Interval { start, end });
+            let r = Interval { start, end };
+            if !r.is_empty() {
+                out.push(r);
+            }
         }
-        Self { ranges }
+        Self { ranges: out }
     }
 }
 

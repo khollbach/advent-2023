@@ -24,9 +24,12 @@ struct Input {
 
 #[derive(Debug, Clone)]
 struct Subset {
+    /// Ideally these would always be non-overlapping, but we're currently not
+    /// enforcing that.
     ranges: Vec<Interval>,
 }
 
+/// Left-inclusive; possibly empty.
 #[derive(Debug, Clone, Copy)]
 struct Interval {
     start: i64,
@@ -35,7 +38,7 @@ struct Interval {
 
 #[derive(Debug)]
 struct Map {
-    /// Invariant: these should *cover* the non-negative number line.
+    /// Invariant: these must *cover* the non-negative number line.
     range_maps: Vec<RangeMap>,
 }
 
@@ -46,21 +49,21 @@ struct RangeMap {
 }
 
 impl Map {
-    fn subset_image(&self, subset: &Subset) -> Subset {
-        let ranges = subset
+    fn subset_image(&self, input: &Subset) -> Subset {
+        let out = input
             .ranges
             .iter()
             .flat_map(|&r| self.range_image(r).ranges)
             .collect();
-        Subset { ranges }
+        Subset { ranges: out }
     }
 
-    fn range_image(&self, range: Interval) -> Subset {
+    fn range_image(&self, input: Interval) -> Subset {
         let mut out = vec![];
         for rmap in &self.range_maps {
-            let segment = Interval::intersection(rmap.input, range);
-            if !segment.is_empty() {
-                let segment_image = segment.translate(rmap.offset());
+            let input_segment = Interval::intersection(rmap.input, input);
+            if !input_segment.is_empty() {
+                let segment_image = input_segment.translate(rmap.offset());
                 out.push(segment_image);
             }
         }
