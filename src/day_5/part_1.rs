@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 
 use super::input::{Input, Map, RangeMap};
 
@@ -7,6 +7,23 @@ pub fn solve(input: &Input) -> Result<u64> {
         .initial_seeds
         .iter()
         .map(|&x| eval_all(&input.maps, x))
+        .min()
+        .context("no initial seeds")
+}
+
+/// Ok, so it turns out the naive thing actually does work.
+///
+/// This takes ~3 mins to run on my laptop.
+#[allow(dead_code)]
+pub fn solve_part_2(input: &Input) -> Result<u64> {
+    ensure!(input.initial_seeds.len() % 2 == 0, "odd number of seeds");
+    let initial_seeds = input.initial_seeds.chunks(2).flat_map(|pair| {
+        let &[start, len] = pair else { unreachable!() };
+        start..start + len
+    });
+
+    initial_seeds
+        .map(|x| eval_all(&input.maps, x))
         .min()
         .context("no initial seeds")
 }
