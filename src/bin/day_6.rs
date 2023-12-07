@@ -1,11 +1,6 @@
 use anyhow::Result;
 
-const INPUTS: [(u32, u32); 4] = [
-    (50, 242),
-    (74, 1017),
-    (86, 1691),
-    (85, 1252),
-];
+const INPUTS: [(u32, u32); 4] = [(50, 242), (74, 1017), (86, 1691), (85, 1252)];
 
 #[allow(dead_code)]
 fn part_1() -> Result<()> {
