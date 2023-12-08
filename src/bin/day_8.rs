@@ -4,10 +4,17 @@ use anyhow::{bail, ensure, Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+#[allow(dead_code)]
+fn part_1() -> Result<()> {
+    let (directions, graph) = read_input()?;
+    let ans = traverse(&directions, &graph);
+    dbg!(ans);
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let (directions, graph) = read_input()?;
-    let ans = traverse(&directions, &graph)?;
-    dbg!(ans);
+    part_2(&directions, &graph);
     Ok(())
 }
 
@@ -64,12 +71,12 @@ impl Direction {
     }
 }
 
-fn traverse(directions: &[Direction], graph: &Graph) -> Result<usize> {
+fn traverse(directions: &[Direction], graph: &Graph) -> usize {
     let mut curr = "AAA";
 
     for (i, &d) in directions.iter().cycle().enumerate() {
         if curr == "ZZZ" {
-            return Ok(i);
+            return i;
         }
 
         let edge = match d {
@@ -79,5 +86,81 @@ fn traverse(directions: &[Direction], graph: &Graph) -> Result<usize> {
         curr = &graph[curr][edge];
     }
 
-    bail!("stuck in a cycle");
+    unreachable!();
+}
+
+/// Ok, just going based off intuition, I think the naive solution is not going
+/// to work this time.
+#[allow(dead_code)]
+fn traverse_part_2(directions: &[Direction], graph: &Graph) -> usize {
+    let mut curr: Vec<_> = graph.keys().filter(|s| s.ends_with('A')).collect();
+
+    for (i, &d) in directions.iter().cycle().enumerate() {
+        if curr.iter().all(|s| s.ends_with('Z')) {
+            return i;
+        }
+
+        let edge = match d {
+            Direction::Left => 0,
+            Direction::Right => 1,
+        };
+        for node in &mut curr {
+            *node = &graph[*node][edge];
+        }
+    }
+
+    unreachable!();
+}
+
+/// This prints out some equations that can be solved by hand.
+fn part_2(directions: &[Direction], graph: &Graph) {
+    for start in graph.keys().filter(|s| s.ends_with('A')) {
+        let ans = find_repetition(directions, graph, start);
+        dbg!(ans);
+    }
+}
+
+#[derive(Debug)]
+// The compiler thinks these fields are never read, but it doesn't realize we're
+// using the Debug impl to print them.
+#[allow(dead_code)]
+struct Repetition {
+    repeated_step: usize,
+    winning_steps: Vec<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct State<'a> {
+    node: &'a str,
+    dir_idx: usize,
+}
+
+fn find_repetition(directions: &[Direction], graph: &Graph, start: &str) -> Repetition {
+    let mut seen_states = HashMap::new();
+    let mut winning_steps = vec![];
+
+    let mut node = start;
+
+    for (step, (dir_idx, &d)) in directions.iter().enumerate().cycle().enumerate() {
+        let state = State { node, dir_idx };
+        if let Some(&repeated_step) = seen_states.get(&state) {
+            return Repetition {
+                repeated_step,
+                winning_steps,
+            };
+        }
+        seen_states.insert(state, step);
+
+        if node.ends_with('Z') {
+            winning_steps.push(step);
+        }
+
+        let edge = match d {
+            Direction::Left => 0,
+            Direction::Right => 1,
+        };
+        node = &graph[node][edge];
+    }
+
+    unreachable!();
 }
