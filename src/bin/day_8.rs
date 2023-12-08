@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io};
+use std::{collections::{HashMap, HashSet}, io};
 
 use anyhow::{bail, ensure, Context, Result};
 use once_cell::sync::Lazy;
@@ -14,7 +14,7 @@ fn part_1() -> Result<()> {
 
 fn main() -> Result<()> {
     let (directions, graph) = read_input()?;
-    part_2(&directions, &graph);
+    part_2(&directions, &graph)?;
     Ok(())
 }
 
@@ -112,18 +112,59 @@ fn traverse_part_2(directions: &[Direction], graph: &Graph) -> usize {
     unreachable!();
 }
 
-/// This prints out some equations that can be solved by hand.
-fn part_2(directions: &[Direction], graph: &Graph) {
+fn part_2(directions: &[Direction], graph: &Graph) -> Result<()> {
+    let mut sets = vec![];
     for start in graph.keys().filter(|s| s.ends_with('A')) {
-        let ans = find_repetition(directions, graph, start);
-        dbg!(ans);
+        let r = find_repetition(directions, graph, start);
+        ensure!(r.winning_steps.len() == 1, "expecting one end node per start node");
+        let s = Set {
+            offset: r.repeated_step,
+            multiple: r.winning_steps[0].checked_sub(r.repeated_step).context("expected the end node to be repeated infinitely often")?,
+        };
+        sets.push(s);
+    }
+
+    // Maybe brute force will work ?
+    let ans = intersection(sets.into_iter().map(Set::first_1m));
+    dbg!(ans);
+
+    Ok(())
+}
+
+/// The set of all n such that `n = offset + multiple * x`, for some x >= 0.
+#[derive(Debug, Clone, Copy)]
+struct Set {
+    offset: usize,
+    multiple: usize,
+}
+
+impl Set {
+    fn first_1m(self) -> HashSet<usize> {
+        let mut out = HashSet::new();
+        let mut x = self.offset;
+        for _ in 0..1_000_000 {
+            out.insert(x);
+            x += self.multiple;
+        }
+        out
     }
 }
 
+fn intersection(mut sets: impl Iterator<Item=HashSet<usize>>) -> HashSet<usize> {
+    let Some(mut out) = sets.by_ref().next() else {
+        return HashSet::new();
+    };
+    for s in sets {
+        out = out.intersection(&s).copied().collect();
+    }
+    out
+}
+
 #[derive(Debug)]
-// The compiler thinks these fields are never read, but it doesn't realize we're
-// using the Debug impl to print them.
-#[allow(dead_code)]
+// // TODO
+// // The compiler thinks these fields are never read, but it doesn't realize we're
+// // using the Debug impl to print them.
+// #[allow(dead_code)]
 struct Repetition {
     repeated_step: usize,
     winning_steps: Vec<usize>,
