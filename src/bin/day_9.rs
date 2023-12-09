@@ -7,7 +7,10 @@ fn main() -> Result<()> {
     let lines = read_input()?;
 
     let mut sum = 0;
-    for l in lines {
+    for mut l in lines {
+        // sum += extrapolate(&l);
+
+        l.reverse();
         sum += extrapolate(&l);
     }
     dbg!(sum);
