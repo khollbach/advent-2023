@@ -34,12 +34,14 @@ fn main() -> Result<()> {
             let (min, max) = bounding_box(stars[i], stars[j]);
             for row in min.row..max.row {
                 if empty_rows[row as usize] {
-                    total += 1;
+                    // total += 1;
+                    total += 10usize.pow(6) - 1;
                 }
             }
             for col in min.col..max.col {
                 if empty_cols[col as usize] {
-                    total += 1;
+                    // total += 1;
+                    total += 10usize.pow(6) - 1;
                 }
             }
         }
