@@ -133,7 +133,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/// If (p, i) is in the map, it means that numbers[i] covers point p.
+/// If (p, i) is in the map, it means that `numbers[i]` covers point p.
 type NumberMap = HashMap<Point, usize>;
 
 fn number_map(numbers: &[Number]) -> NumberMap {
