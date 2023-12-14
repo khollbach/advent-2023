@@ -52,10 +52,10 @@ impl Input {
         let n = self.grid.len();
         let mut out = None;
 
-        for bottom_half in [false, true] {
+        for second_half in [false, true] {
             for i in 1..=n / 2 {
                 if self.is_mirrored_at(i) {
-                    let row_idx = if bottom_half { i } else { n - i };
+                    let row_idx = if second_half { n - i } else { i };
                     debug_assert!(out.is_none(), "expected at most one line of reflection");
                     out = Some(row_idx);
                 }
