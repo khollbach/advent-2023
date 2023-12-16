@@ -3,9 +3,24 @@ use std::io;
 use anyhow::{bail, Result};
 use itertools::Itertools;
 
-fn main() -> Result<()> {
+#[allow(dead_code)]
+fn part_1() -> Result<()> {
     let mut input = read_input()?;
     input.roll_north();
+    let ans = input.north_load();
+    dbg!(ans);
+    Ok(())
+}
+
+// Ok, probably too slow. Looks like it'd take at least a day to run.
+fn main() -> Result<()> {
+    let mut input = read_input()?;
+    for i in 0..10_usize.pow(9) {
+        if i % 10_usize.pow(4) == 0 {
+            dbg!(i);
+        }
+        input.spin_cycle();
+    }
     let ans = input.north_load();
     dbg!(ans);
     Ok(())
@@ -42,12 +57,37 @@ enum Tile {
 }
 
 impl Input {
+    fn spin_cycle(&mut self) {
+        self.roll_north();
+        self.roll_west();
+        self.roll_south();
+        self.roll_east();
+    }
+
     fn roll_north(&mut self) {
         let (_, ncols) = self.dims();
         for col in 0..ncols {
             let groups = self.first_pass(col);
             self.second_pass(col, &groups);
         }
+    }
+
+    fn roll_south(&mut self) {
+        self.flip_north_south();
+        self.roll_north();
+        self.flip_north_south();
+    }
+
+    fn roll_west(&mut self) {
+        self.transpose();
+        self.roll_north();
+        self.transpose();
+    }
+
+    fn roll_east(&mut self) {
+        self.transpose();
+        self.roll_south(); // (south!)
+        self.transpose();
     }
 
     fn north_load(&self) -> usize {
@@ -123,6 +163,29 @@ impl Input {
         }
 
         assert!(groups.next().is_none(), "too many groups");
+    }
+
+    fn flip_north_south(&mut self) {
+        let (nrows, ncols) = self.dims();
+        for j in 0..ncols {
+            for i in 0..nrows / 2 {
+                let tmp = self.grid[i][j];
+                self.grid[i][j] = self.grid[nrows - 1 - i][j];
+                self.grid[nrows - 1 - i][j] = tmp;
+            }
+        }
+    }
+
+    fn transpose(&mut self) {
+        let (nrows, ncols) = self.dims();
+
+        let mut out = vec![vec![Tile::Empty; nrows]; ncols]; // note the swap !
+        for i in 0..nrows {
+            for j in 0..ncols {
+                out[j][i] = self.grid[i][j];
+            }
+        }
+        self.grid = out;
     }
 
     fn dims(&self) -> (usize, usize) {
