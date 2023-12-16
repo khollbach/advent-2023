@@ -1,26 +1,34 @@
 use std::io;
 
-use anyhow::{bail, ensure, Result};
+use anyhow::{bail, Result};
 use itertools::Itertools;
 
-// Hrmmmm. This doesn't even seem much faster.
-fn main() -> Result<()> {
-    let mut grid = Grid::new(read_input()?)?;
-    for i in 0..10_usize.pow(9) {
-        if i % 10_usize.pow(4) == 0 {
-            dbg!(i);
-        }
-        grid.spin_cycle();
-    }
-    let ans = grid.north_load();
+#[allow(dead_code)]
+fn part_1() -> Result<()> {
+    let mut input = read_input()?;
+    input.roll_north();
+    let ans = input.north_load();
     dbg!(ans);
     Ok(())
 }
 
-type Input = Vec<Vec<Tile>>;
+// Ok, probably too slow. Looks like it'd take at least a day to run.
+fn main() -> Result<()> {
+    let mut input = read_input()?;
+    for i in 0..10_usize.pow(9) {
+        if i % 10_usize.pow(4) == 0 {
+            dbg!(i);
+        }
+        input.spin_cycle();
+    }
+    let ans = input.north_load();
+    dbg!(ans);
+    Ok(())
+}
 
 fn read_input() -> Result<Input> {
-    io::stdin().lines().map(parse_line).try_collect()
+    let grid = io::stdin().lines().map(parse_line).try_collect()?;
+    Ok(Input { grid })
 }
 
 fn parse_line(line: io::Result<String>) -> Result<Vec<Tile>> {
@@ -37,10 +45,8 @@ fn parse_tile(c: char) -> Result<Tile> {
     Ok(out)
 }
 
-struct Grid {
-    // grid: Input,
-    grid: [[Tile; 100]; 100],
-    transposed: bool,
+struct Input {
+    grid: Vec<Vec<Tile>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,24 +56,7 @@ enum Tile {
     Obstacle,
 }
 
-impl Grid {
-    fn new(input: Input) -> Result<Self> {
-        ensure!(input.len() == 100);
-        ensure!(input.iter().all(|row| row.len() == 100));
-
-        let mut grid = [[Tile::Empty; 100]; 100];
-        for i in 0..100 {
-            for j in 0..100 {
-                grid[i][j] = input[i][j];
-            }
-        }
-
-        Ok(Self {
-            grid,
-            transposed: false,
-        })
-    }
-
+impl Input {
     fn spin_cycle(&mut self) {
         self.roll_north();
         self.roll_west();
@@ -75,36 +64,30 @@ impl Grid {
         self.roll_east();
     }
 
-    fn roll_east(&mut self) {
-        let (nrows, _) = self.dims();
-        for row in 0..nrows {
-            let groups = self.first_pass(row);
-            self.second_pass(row, &groups);
+    fn roll_north(&mut self) {
+        let (_, ncols) = self.dims();
+        for col in 0..ncols {
+            let groups = self.first_pass(col);
+            self.second_pass(col, &groups);
         }
     }
 
-    fn roll_west(&mut self) {
-        self.flip_east_west();
-        self.roll_east();
-        self.flip_east_west();
-    }
-
     fn roll_south(&mut self) {
+        self.flip_north_south();
+        self.roll_north();
+        self.flip_north_south();
+    }
+
+    fn roll_west(&mut self) {
         self.transpose();
-        self.roll_east();
+        self.roll_north();
         self.transpose();
     }
 
-    fn roll_north(&mut self) {
-        // Flipping east/west before transposing is the same as flipping
-        // north/south after transposing.
-        self.flip_east_west();
+    fn roll_east(&mut self) {
         self.transpose();
-
-        self.roll_east();
-
+        self.roll_south(); // (south!)
         self.transpose();
-        self.flip_east_west();
     }
 
     fn north_load(&self) -> usize {
@@ -113,7 +96,7 @@ impl Grid {
         let mut total = 0;
         for i in 0..nrows {
             for j in 0..ncols {
-                if self.get(i, j) == Tile::Rock {
+                if self.grid[i][j] == Tile::Rock {
                     let load = nrows - i;
                     total += load;
                 }
@@ -123,19 +106,19 @@ impl Grid {
     }
 
     /// Pick up all the rocks.
-    fn first_pass(&mut self, row: usize) -> Vec<usize> {
-        let (_, ncols) = self.dims();
+    fn first_pass(&mut self, col: usize) -> Vec<usize> {
+        let (nrows, _) = self.dims();
 
         let mut groups = vec![];
         let mut curr_group = 0;
-        for col in 0..=ncols {
-            // Edge-case: the end of the row.
+        for row in 0..=nrows {
+            // Edge-case: the end of the column.
             let mut terminator = Tile::Obstacle;
 
-            let tile = if col == ncols {
+            let tile = if row == nrows {
                 &mut terminator
             } else {
-                self.get_mut(row, col)
+                &mut self.grid[row][col]
             };
 
             match tile {
@@ -154,13 +137,13 @@ impl Grid {
     }
 
     /// Re-distribute them.
-    fn second_pass(&mut self, row: usize, groups: &[usize]) {
-        let (_, ncols) = self.dims();
+    fn second_pass(&mut self, col: usize, groups: &[usize]) {
+        let (nrows, _) = self.dims();
 
         let mut groups = groups.iter().copied();
         let mut curr_group = groups.next().expect("empty groups");
-        for col in 0..ncols {
-            let tile = self.get_mut(row, col);
+        for row in 0..nrows {
+            let tile = &mut self.grid[row][col];
             match *tile {
                 Tile::Empty => {
                     if curr_group != 0 {
@@ -182,37 +165,27 @@ impl Grid {
         assert!(groups.next().is_none(), "too many groups");
     }
 
-    fn flip_east_west(&mut self) {
-        assert!(!self.transposed);
-
+    fn flip_north_south(&mut self) {
         let (nrows, ncols) = self.dims();
-        for i in 0..nrows {
-            for j in 0..ncols / 2 {
+        for j in 0..ncols {
+            for i in 0..nrows / 2 {
                 let tmp = self.grid[i][j];
-                self.grid[i][j] = self.grid[i][ncols - 1 - j];
-                self.grid[i][ncols - 1 - j] = tmp;
+                self.grid[i][j] = self.grid[nrows - 1 - i][j];
+                self.grid[nrows - 1 - i][j] = tmp;
             }
         }
     }
 
     fn transpose(&mut self) {
-        self.transposed ^= true;
-    }
+        let (nrows, ncols) = self.dims();
 
-    fn get(&self, i: usize, j: usize) -> Tile {
-        if self.transposed {
-            self.grid[j][i]
-        } else {
-            self.grid[i][j]
+        let mut out = vec![vec![Tile::Empty; nrows]; ncols]; // note the swap !
+        for i in 0..nrows {
+            for j in 0..ncols {
+                out[j][i] = self.grid[i][j];
+            }
         }
-    }
-
-    fn get_mut(&mut self, i: usize, j: usize) -> &mut Tile {
-        if self.transposed {
-            &mut self.grid[j][i]
-        } else {
-            &mut self.grid[i][j]
-        }
+        self.grid = out;
     }
 
     fn dims(&self) -> (usize, usize) {
