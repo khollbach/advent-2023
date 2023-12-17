@@ -1,32 +1,48 @@
 use std::{
+    cmp::max,
     collections::HashSet,
-    ops::{Add, AddAssign}, io,
+    io,
+    ops::{Add, AddAssign},
 };
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use itertools::Itertools;
 
-fn main() -> Result<()> {
+#[allow(dead_code)]
+fn part_1() -> Result<()> {
     let grid = read_input()?;
     let start = State {
         position: Point { row: 0, col: 0 },
         direction: Dir::Right,
     };
     let seen = grid.explore(start);
+    dbg!(seen.len());
+    Ok(())
+}
 
+fn main() -> Result<()> {
+    let grid = read_input()?;
     let dims = grid.dims();
+
+    let mut best = 0;
+
     for row in 0..dims.row {
-        for col in 0..dims.col {
-            if seen.contains(&Point { row, col }) {
-                print!("#");
-            } else {
-                print!(".");
-            }
-        }
-        println!();
+        let start = ((row, 0), Dir::Right).into();
+        best = max(best, grid.explore(start).len());
+
+        let start = ((row, dims.col - 1), Dir::Left).into();
+        best = max(best, grid.explore(start).len());
     }
 
-    dbg!(seen.len());
+    for col in 0..dims.col {
+        let start = ((0, col), Dir::Down).into();
+        best = max(best, grid.explore(start).len());
+
+        let start = ((dims.row - 1, col), Dir::Up).into();
+        best = max(best, grid.explore(start).len());
+    }
+
+    dbg!(best);
     Ok(())
 }
 
@@ -174,8 +190,21 @@ impl State {
     }
 }
 
-impl Point {
-    const fn new(row: isize, col: isize) -> Self {
+impl<P, D> From<(P, D)> for State
+where
+    P: Into<Point>,
+    D: Into<Dir>,
+{
+    fn from((p, d): (P, D)) -> Self {
+        Self {
+            position: p.into(),
+            direction: d.into(),
+        }
+    }
+}
+
+impl From<(isize, isize)> for Point {
+    fn from((row, col): (isize, isize)) -> Self {
         Self { row, col }
     }
 }
@@ -199,11 +228,12 @@ impl AddAssign for Point {
 
 impl From<Dir> for Point {
     fn from(d: Dir) -> Self {
-        match d {
-            Dir::Up => Point::new(-1, 0),
-            Dir::Down => Point::new(1, 0),
-            Dir::Left => Point::new(0, -1),
-            Dir::Right => Point::new(0, 1),
-        }
+        let p = match d {
+            Dir::Up => (-1, 0),
+            Dir::Down => (1, 0),
+            Dir::Left => (0, -1),
+            Dir::Right => (0, 1),
+        };
+        p.into()
     }
 }
