@@ -13,6 +13,19 @@ fn main() -> Result<()> {
         direction: Dir::Right,
     };
     let seen = grid.explore(start);
+
+    let dims = grid.dims();
+    for row in 0..dims.row {
+        for col in 0..dims.col {
+            if seen.contains(&Point { row, col }) {
+                print!("#");
+            } else {
+                print!(".");
+            }
+        }
+        println!();
+    }
+
     dbg!(seen.len());
     Ok(())
 }
@@ -105,13 +118,13 @@ impl Grid {
 
             (Tile::Slash, Dir::Up) => self.dfs(curr.right(), seen),
             (Tile::Slash, Dir::Down) => self.dfs(curr.left(), seen),
-            (Tile::Slash, Dir::Left) => self.dfs(curr.up(), seen),
-            (Tile::Slash, Dir::Right) => self.dfs(curr.down(), seen),
+            (Tile::Slash, Dir::Left) => self.dfs(curr.down(), seen),
+            (Tile::Slash, Dir::Right) => self.dfs(curr.up(), seen),
 
             (Tile::Backslash, Dir::Up) => self.dfs(curr.left(), seen),
             (Tile::Backslash, Dir::Down) => self.dfs(curr.right(), seen),
-            (Tile::Backslash, Dir::Left) => self.dfs(curr.down(), seen),
-            (Tile::Backslash, Dir::Right) => self.dfs(curr.up(), seen),
+            (Tile::Backslash, Dir::Left) => self.dfs(curr.up(), seen),
+            (Tile::Backslash, Dir::Right) => self.dfs(curr.down(), seen),
         }
     }
 
