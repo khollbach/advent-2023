@@ -1,4 +1,4 @@
-use std::io;
+use std::{collections::HashMap, io};
 
 use anyhow::{bail, Result};
 use itertools::Itertools;
@@ -12,18 +12,53 @@ fn part_1() -> Result<()> {
     Ok(())
 }
 
-// Ok, probably too slow. Looks like it'd take at least a day to run.
 fn main() -> Result<()> {
-    let mut input = read_input()?;
-    for i in 0..10_usize.pow(9) {
-        if i % 10_usize.pow(4) == 0 {
-            dbg!(i);
-        }
-        input.spin_cycle();
-    }
-    let ans = input.north_load();
+    let mut grid = read_input()?;
+    grid.simulate_1b_spin_cycles();
+    let ans = grid.north_load();
     dbg!(ans);
     Ok(())
+}
+
+impl Input {
+    fn simulate_1b_spin_cycles(&mut self) {
+        let r = self.find_repetition();
+
+        let mut num_cycles = 10_usize.pow(9);
+        num_cycles -= r.stem_len;
+        num_cycles %= r.cycle_len;
+        num_cycles += r.stem_len;
+
+        for _ in 0..num_cycles {
+            self.spin_cycle();
+        }
+    }
+
+    fn find_repetition(&self) -> Repetition {
+        let mut state = self.clone();
+
+        let mut seen = HashMap::new();
+        for i in 0.. {
+            if let Some(&stem_len) = seen.get(&state) {
+                let cycle_len = i - stem_len;
+                return Repetition {
+                    stem_len,
+                    cycle_len,
+                };
+            }
+            seen.insert(state.clone(), i);
+
+            state.spin_cycle();
+        }
+
+        unreachable!();
+    }
+}
+
+#[derive(Debug)]
+struct Repetition {
+    stem_len: usize,
+    cycle_len: usize,
 }
 
 fn read_input() -> Result<Input> {
@@ -45,11 +80,12 @@ fn parse_tile(c: char) -> Result<Tile> {
     Ok(out)
 }
 
+#[derive(Clone, PartialEq, Eq, Hash)]
 struct Input {
     grid: Vec<Vec<Tile>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Tile {
     Empty,
     Rock,
