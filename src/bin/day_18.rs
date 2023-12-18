@@ -4,7 +4,7 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use anyhow::{bail, Result, Context};
+use anyhow::{bail, Context, Result};
 use itertools::Itertools;
 
 fn main() -> Result<()> {
@@ -42,17 +42,33 @@ fn parse_line(line: io::Result<String>) -> Result<Command> {
 }
 
 fn enclosed_area(input: &[Command]) -> usize {
-    let mut seen = HashSet::new();
+    let mut walls = HashSet::new();
 
     let mut curr = Point::from((0, 0));
     for &(dir, len) in input {
         for _ in 0..len {
             curr += dir.into();
-            seen.insert(curr);
+            walls.insert(curr);
         }
     }
 
-    panic!("{}", seen.len()) // todo: paint-bucket-fill the middle
+    // Paint-bucket-fill the middle. We guess-and-checked a good starting point.
+    let start = (1, 1).into();
+    let mut inner = HashSet::new();
+    dfs(start, &walls, &mut inner);
+    walls.len() + inner.len()
+}
+
+fn dfs(curr: Point, walls: &HashSet<Point>, visited: &mut HashSet<Point>) {
+    if walls.contains(&curr) || visited.contains(&curr) {
+        return;
+    }
+    visited.insert(curr);
+
+    for dir in [Dir::Up, Dir::Down, Dir::Left, Dir::Right] {
+        let next = curr + dir.into();
+        dfs(next, walls, visited);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
