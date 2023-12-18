@@ -24,7 +24,10 @@ fn read_input() -> Result<Graph> {
 fn parse_line(line: io::Result<String>) -> Result<Vec<u32>> {
     line?
         .chars()
-        .map(|c| c.to_digit(10).with_context(|| "invalid digit: {c:?}"))
+        .map(|c| {
+            c.to_digit(10)
+                .with_context(|| format!("invalid digit: {c:?}"))
+        })
         .collect()
 }
 
@@ -41,27 +44,29 @@ impl Graph {
         // Priority queue, ordered by distance estimate.
         let mut to_visit = BTreeSet::<PqElem>::new();
 
-        // "See" the first node.
-        let start = PqElem {
-            distance_estimate: 0,
-            state: State {
-                position: start,
-                direction: Dir::Right,
-                streak_length: 0,
-            },
-        };
-        seen.insert(
-            start.state,
-            Seen::ToVisit {
+        // "See" the first node (from both possible initial directions).
+        for direction in [Dir::Right, Dir::Down] {
+            let start = PqElem {
                 distance_estimate: 0,
-            },
-        );
-        to_visit.insert(start);
+                state: State {
+                    position: start,
+                    direction,
+                    streak_length: 0,
+                },
+            };
+            seen.insert(
+                start.state,
+                Seen::ToVisit {
+                    distance_estimate: 0,
+                },
+            );
+            to_visit.insert(start);
+        }
 
         while let Some(curr) = to_visit.pop_first() {
             seen.insert(curr.state, Seen::Visited);
 
-            if curr.state.position == target {
+            if curr.state.position == target && curr.state.streak_length >= 4 {
                 return Some(curr.distance_estimate);
             }
 
@@ -105,6 +110,37 @@ impl Graph {
     }
 
     fn successors(&self, state: State) -> Vec<State> {
+        let left = State {
+            position: state.position,
+            direction: state.direction.rotate_left(),
+            streak_length: 0,
+        }
+        .forward();
+
+        let right = State {
+            position: state.position,
+            direction: state.direction.rotate_right(),
+            streak_length: 0,
+        }
+        .forward();
+
+        let forward = state.forward();
+
+        let mut out = vec![];
+        if state.streak_length >= 4 {
+            out.push(left);
+            out.push(right);
+        }
+        if state.streak_length < 10 {
+            out.push(forward);
+        }
+
+        out.retain(|next| self.in_bounds(next.position));
+        out
+    }
+
+    #[allow(dead_code)]
+    fn successors_part_1(&self, state: State) -> Vec<State> {
         let left = State {
             position: state.position,
             direction: state.direction.rotate_left(),
