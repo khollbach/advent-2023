@@ -7,6 +7,27 @@ use anyhow::{bail, ensure, Context, Result};
 use itertools::Itertools;
 
 fn main() -> Result<()> {
+    let numbers = [
+        0b_110000110111_0000_u16,
+        0b_100011001111_0000_u16,
+        0b_111011010111_0000_u16,
+        0b_100110111111_0000_u16,
+    ];
+    for bits in numbers {
+        let x = bits.reverse_bits();
+        dbg!(x);
+    }
+
+    // The answer is the LCM of the above numbers.
+    // I used wolfram alpha for that step.
+    //
+    // Turns out they're all prime, so LCM is just product.
+
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn part_1() -> Result<()> {
     let mut circuit = read_input()?;
     for _ in 0..1000 {
         circuit.push_button();
