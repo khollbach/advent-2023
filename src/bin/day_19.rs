@@ -1,5 +1,11 @@
 use std::{
-    collections::HashMap, convert::Infallible, io, result::Result as StdResult, str::FromStr,
+    cmp::{max, min},
+    collections::HashMap,
+    convert::Infallible,
+    io,
+    ops::RangeInclusive,
+    result::Result as StdResult,
+    str::FromStr,
 };
 
 use anyhow::{bail, Context, Result};
@@ -8,6 +14,131 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 fn main() -> Result<()> {
+    let input = read_input()?;
+
+    let everything = Cube {
+        x: 1..=4000,
+        m: 1..=4000,
+        a: 1..=4000,
+        s: 1..=4000,
+    };
+    let mut cubes = vec![];
+    input.accepted_cubes(&input.workflows["in"], everything, &mut cubes);
+
+    let mut total = 0u64;
+    for cube in cubes {
+        total += cube.volume();
+    }
+    dbg!(total);
+
+    Ok(())
+}
+
+/// 4-D hyper-cube (rectangle, really).
+///
+/// Possibly empty.
+#[derive(Debug, Clone)]
+struct Cube {
+    x: RangeInclusive<u16>,
+    m: RangeInclusive<u16>,
+    a: RangeInclusive<u16>,
+    s: RangeInclusive<u16>,
+}
+
+impl Input {
+    fn accepted_cubes(&self, wf: &Workflow, mut cube: Cube, out: &mut Vec<Cube>) {
+        for r in &wf.rules {
+            let Split { yes, no } = r.condition.split(cube);
+            if !yes.is_empty() {
+                match r.action.clone() {
+                    Action::Reject => (),
+                    Action::Accept => out.push(yes),
+                    Action::Send(label) => self.accepted_cubes(&self.workflows[&label], yes, out),
+                }
+            }
+            cube = no;
+        }
+
+        if !cube.is_empty() {
+            match wf.default.clone() {
+                Action::Reject => (),
+                Action::Accept => out.push(cube),
+                Action::Send(label) => self.accepted_cubes(&self.workflows[&label], cube, out),
+            }
+        }
+    }
+}
+
+impl Condition {
+    fn split(&self, cube: Cube) -> Split {
+        let yes_range = match self.comparison {
+            Comparison::Less => 1..=self.threshold - 1,
+            Comparison::Greater => self.threshold + 1..=4000,
+        };
+        let no_range = negate(yes_range.clone());
+
+        let mut yes = cube.clone();
+        let mut no = cube.clone();
+
+        match self.field {
+            Field::X => {
+                yes.x = intersect(cube.x.clone(), yes_range);
+                no.x = intersect(cube.x.clone(), no_range);
+            }
+            Field::M => {
+                yes.m = intersect(cube.m.clone(), yes_range);
+                no.m = intersect(cube.m.clone(), no_range);
+            }
+            Field::A => {
+                yes.a = intersect(cube.a.clone(), yes_range);
+                no.a = intersect(cube.a.clone(), no_range);
+            }
+            Field::S => {
+                yes.s = intersect(cube.s.clone(), yes_range);
+                no.s = intersect(cube.s.clone(), no_range);
+            }
+        }
+
+        Split { yes, no }
+    }
+}
+
+#[derive(Debug)]
+struct Split {
+    yes: Cube,
+    no: Cube,
+}
+
+fn intersect(a: RangeInclusive<u16>, b: RangeInclusive<u16>) -> RangeInclusive<u16> {
+    let start = max(*a.start(), *b.start());
+    let end = min(*a.end(), *b.end());
+    start..=end
+}
+
+fn negate(a: RangeInclusive<u16>) -> RangeInclusive<u16> {
+    assert!(!a.contains(&0) && !a.contains(&4001));
+    assert!(a.contains(&1) || a.contains(&4000));
+
+    if a.contains(&1) {
+        *a.end() + 1..=4000
+    } else {
+        1..=*a.start() - 1
+    }
+}
+
+impl Cube {
+    fn is_empty(&self) -> bool {
+        self.volume() == 0
+    }
+
+    fn volume(&self) -> u64 {
+        let out = self.x.len() * self.m.len() * self.a.len() * self.s.len();
+        out as u64
+    }
+}
+
+#[allow(unused)]
+fn part_1() -> Result<()> {
     let input = read_input()?;
 
     let mut sum = 0;
@@ -77,35 +208,40 @@ impl Condition {
     }
 }
 
+#[derive(Debug)]
 struct Input {
     workflows: HashMap<String, Workflow>,
     items: Vec<Item>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct Item {
-    x: u32,
-    m: u32,
-    a: u32,
-    s: u32,
+    x: u16,
+    m: u16,
+    a: u16,
+    s: u16,
 }
 
+#[derive(Debug)]
 struct Workflow {
     rules: Vec<Rule>,
     default: Action,
 }
 
+#[derive(Debug)]
 struct Rule {
     condition: Condition,
     action: Action,
 }
 
+#[derive(Debug)]
 struct Condition {
     field: Field,
     comparison: Comparison,
-    threshold: u32,
+    threshold: u16,
 }
 
+#[derive(Debug)]
 enum Field {
     X,
     M,
@@ -113,12 +249,13 @@ enum Field {
     S,
 }
 
+#[derive(Debug)]
 enum Comparison {
     Less,
     Greater,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 enum Action {
     Reject,
     Accept,
