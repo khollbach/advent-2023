@@ -1,21 +1,35 @@
-use std::{io, ops::Add};
+use std::{
+    collections::{HashMap, HashSet},
+    io,
+    ops::Add,
+};
 
 use anyhow::{Context, Result};
 use itertools::Itertools;
 
-fn main() -> Result<()> {
+#[allow(dead_code)]
+fn part_1() -> Result<()> {
     let grid = read_grid()?;
-
-    let start = (0, 1).into();
-    let end = (140, 139).into();
-
+    let (start, end) = grid.start_end();
     let ans = grid.longest_path(start, end).context("no path exists")?;
     dbg!(ans);
-
     Ok(())
 }
 
 impl Grid {
+    fn start_end(&self) -> (Point, Point) {
+        let dims = self.dims();
+        let start = (0, 1);
+        let end = (dims.row - 1, dims.col - 1);
+        (start.into(), end.into())
+    }
+
+    fn dims(&self) -> Point {
+        let row = self.grid.len() as isize;
+        let col = self.grid[0].len() as isize;
+        Point { row, col }
+    }
+
     fn longest_path(&self, source: Point, dest: Point) -> Option<usize> {
         let mut paths = vec![];
         self.all_paths(&mut vec![source], dest, &mut paths);
@@ -114,4 +128,108 @@ fn read_grid() -> Result<Grid> {
         .map_ok(|l| l.into_bytes())
         .try_collect()?;
     Ok(Grid { grid })
+}
+
+impl Grid {
+    fn in_bounds(&self, p: Point) -> bool {
+        let row = 0 <= p.row && p.row < self.dims().row;
+        let col = 0 <= p.col && p.col < self.dims().col;
+        row && col
+    }
+}
+
+const DIRS: [Point; 4] = [UP, DOWN, LEFT, RIGHT];
+
+// ---
+
+fn main() -> Result<()> {
+    let grid = read_grid()?;
+    let graph = Graph::from_grid(&grid);
+    dbg!(graph);
+    Ok(())
+}
+
+impl Graph {
+    fn from_grid(grid: &Grid) -> Self {
+        let mut nodes = HashMap::new();
+        for row in 0..grid.dims().row {
+            for col in 0..grid.dims().col {
+                let p = Point { row, col };
+                if grid.get(p) == '*' {
+                    nodes.insert(p, Node::default());
+                }
+            }
+        }
+
+        let mut this = Self { nodes };
+
+        let (start, _) = grid.start_end();
+        let mut seen = HashSet::new();
+        seen.insert(start);
+        grid.dfs(start + DOWN, start, 0, &mut seen, &mut this);
+
+        this
+    }
+}
+
+impl Grid {
+    /// Helper for `Graph::from_grid`.
+    fn dfs(
+        &self,
+        curr: Point,
+        mut prev_node: Point,
+        mut curr_edge_weight: usize,
+        seen: &mut HashSet<Point>,
+        out: &mut Graph,
+    ) {
+        curr_edge_weight += 1;
+
+        if self.get(curr) == '*' {
+            // Add both edges.
+            let (a, b) = (curr, prev_node);
+            let weight = curr_edge_weight;
+            out.nodes
+                .get_mut(&a)
+                .unwrap()
+                .edges
+                .push(Edge { weight, dest: b });
+            out.nodes
+                .get_mut(&b)
+                .unwrap()
+                .edges
+                .push(Edge { weight, dest: a });
+
+            prev_node = curr;
+            curr_edge_weight = 0;
+        }
+
+        // Already explored my neighbors.
+        if seen.contains(&curr) {
+            return;
+        }
+        seen.insert(curr);
+
+        for d in DIRS {
+            let next = curr + d;
+            if self.in_bounds(next) && self.get(next) != '#' && next != prev_node {
+                self.dfs(next, prev_node, curr_edge_weight, seen, out);
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Graph {
+    nodes: HashMap<Point, Node>,
+}
+
+#[derive(Debug, Default)]
+struct Node {
+    edges: Vec<Edge>,
+}
+
+#[derive(Debug)]
+struct Edge {
+    weight: usize,
+    dest: Point,
 }
