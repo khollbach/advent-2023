@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use itertools::Itertools;
+use rand::{distributions::WeightedIndex, prelude::*};
 
 #[allow(dead_code)]
 fn part_1() -> Result<()> {
@@ -20,7 +21,7 @@ impl Grid {
     fn start_end(&self) -> (Point, Point) {
         let dims = self.dims();
         let start = (0, 1);
-        let end = (dims.row - 1, dims.col - 1);
+        let end = (dims.row - 1, dims.col - 2);
         (start.into(), end.into())
     }
 
@@ -144,10 +145,61 @@ const DIRS: [Point; 4] = [UP, DOWN, LEFT, RIGHT];
 
 fn main() -> Result<()> {
     let grid = read_grid()?;
+    let (start, end) = grid.start_end();
     let graph = Graph::from_grid(&grid);
-    dbg!(graph);
-    Ok(())
+
+    let mut best = 0;
+    loop {
+        if let Some(weight) = graph.walk(start, end) {
+            if weight > best {
+                println!("new best: {weight}");
+                best = weight;
+            }
+        }
+    }
 }
+
+impl Graph {
+    fn walk(&self, start: Point, end: Point) -> Option<usize> {
+        let mut path_weight = 0;
+        let mut curr = start;
+        let mut seen = HashSet::new();
+
+        loop {
+            assert!(!seen.contains(&curr));
+            seen.insert(curr);
+
+            if curr == end {
+                return Some(path_weight);
+            }
+
+            let Some(e) = self.random_unseen_edge(curr, &seen) else {
+                return None;
+            };
+
+            path_weight += e.weight;
+            curr = e.dest;
+        }
+    }
+
+    fn random_unseen_edge(&self, curr: Point, seen: &HashSet<Point>) -> Option<Edge> {
+        let candidates: Vec<_> = self.nodes[&curr]
+            .edges
+            .iter()
+            .copied()
+            .filter(|e| !seen.contains(&e.dest))
+            .collect();
+        if candidates.is_empty() {
+            return None;
+        }
+
+        let dist = WeightedIndex::new(candidates.iter().map(|e| e.weight)).unwrap();
+        let idx = dist.sample(&mut rand::thread_rng());
+        Some(candidates[idx])
+    }
+}
+
+// ---
 
 impl Graph {
     fn from_grid(grid: &Grid) -> Self {
@@ -228,7 +280,7 @@ struct Node {
     edges: Vec<Edge>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Edge {
     weight: usize,
     dest: Point,
