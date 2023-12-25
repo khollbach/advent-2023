@@ -9,7 +9,8 @@ use std::{
 use anyhow::{bail, Context, Result};
 use itertools::Itertools;
 
-fn main() -> Result<()> {
+#[allow(dead_code)]
+fn part_1() -> Result<()> {
     let world = read_input()?;
     dbg!(world.settle().num_safe());
     Ok(())
@@ -236,4 +237,79 @@ impl World {
 
         out
     }
+}
+
+// ---
+
+const UP: Point = Point { x: 0, y: 0, z: 1 };
+
+impl World {
+    fn support_graph(&self) -> Graph {
+        let mut g = Graph::default();
+
+        for b in self.bricks.values() {
+            let edges = b
+                .points
+                .iter()
+                .filter_map(|&p| self.space.get(&(p + UP)))
+                .filter(|&&id| id != b.id)
+                .copied()
+                .collect();
+
+            for &id in &edges {
+                g.nodes.entry(id).or_default().indegree += 1;
+            }
+
+            g.nodes.entry(b.id).or_default().edges = edges;
+        }
+
+        g
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct Graph {
+    nodes: HashMap<BrickId, Node>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct Node {
+    indegree: usize,
+    edges: HashSet<BrickId>,
+}
+
+impl Graph {
+    /// How many _other_ bricks would fall if we removed `start`?
+    fn chain_reaction(mut self, start: BrickId) -> usize {
+        let mut out = 0;
+
+        let mut exposed = vec![start];
+        while let Some(b) = exposed.pop() {
+            // Visit `b`.
+            out += 1;
+
+            for next in self.nodes[&b].edges.clone() {
+                let deg = &mut self.nodes.get_mut(&next).unwrap().indegree;
+                *deg -= 1;
+                if *deg == 0 {
+                    exposed.push(next);
+                }
+            }
+        }
+
+        out - 1 // Don't count `start`.
+    }
+}
+
+fn main() -> Result<()> {
+    let world = read_input()?;
+    let graph = world.settle().support_graph();
+
+    let mut sum = 0;
+    for &b in graph.nodes.keys() {
+        sum += graph.clone().chain_reaction(b);
+    }
+    dbg!(sum);
+
+    Ok(())
 }
